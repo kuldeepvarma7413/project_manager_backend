@@ -10,6 +10,10 @@ const app = express();
 // middleware
 app.use(express.json());    // return data in json
 app.use(express.urlencoded({extended: true}))   // parse url and return object in body
+app.use((req, res, next)=>{
+    console.log(req.url);
+    next();
+})
 
 // cors
 const cors = require('cors')
@@ -68,7 +72,6 @@ app.get('/', (req, res) => {
 // working fine
 // route to add employee in database (getting name, email, designation, department, phone, address, organisation_id, photo in request body)
 app.post('/add-employee', upload.single('photo'), async (req, res) => {
-    console.log(req.url)
     try{
 
         // Upload photo to Cloudinary
@@ -106,7 +109,6 @@ app.post('/add-employee', upload.single('photo'), async (req, res) => {
 // working fine
 // route to get all employees of an organisation (getting organisation_id in request body)
 app.get('/get-employees', async (req, res) => {
-    console.log(req.url)
     const employees = await schema.Employee.find({ organisation_id: req.query.organizationId });
     res.send(employees);
 });
@@ -115,8 +117,7 @@ app.get('/get-employees', async (req, res) => {
 // route to delete employee (getting employee id in request body)
 app.delete('/delete-employee', async (req, res) => {
     const employeeId = req.query.id;
-    
-    console.log(req.query)
+
     // Delete employee image from Cloudinary
     const employee = await schema.Employee.findById(employeeId);
     const imagePublicId = employee.photo.split('/').pop().split('.')[0];
@@ -131,7 +132,6 @@ app.delete('/delete-employee', async (req, res) => {
 // working fine
 // update employee (getting employee id in request query)
 app.put('/update-employee', async (req, res) => {
-    console.log(req.url)
     try{
         // if photo is in request
         const employee = await schema.Employee.findById(req.query.id);
@@ -172,7 +172,6 @@ app.put('/update-employee', async (req, res) => {
 // working fine
 // returns all employees id and name depending on organisation id (in query)
 app.get('/get-employees', async (req, res) => {
-    console.log(req.url)
     const employees = await schema.Employee.find({ organisation_id: req.query.organizationId }).select('name _id');
     res.send(employees);
 });
@@ -181,7 +180,6 @@ app.get('/get-employees', async (req, res) => {
 // working fine
 // route to add task in database (getting title, description, phase, assigned_to, deadline, progress, container_id in request body)
 app.post('/add-task', async (req, res) => {
-    console.log(req.url)
     const task = new schema.Task({
         title: req.body.title,
         description: req.body.description,
@@ -250,29 +248,53 @@ app.get('/get-tasks', async (req, res) => {
 // checking
 // route to change container id of a task (getting task_id, container_id, organisation_id in request body)
 app.put('/change-container', async (req, res) => {
+    const { taskId, containerId } = req.query;
+    console.log("taskId:", taskId, "containerId:", containerId)
     try {
-        const task = await schema.Task.findOneAndUpdate({ task_id: req.query.task_id }, {$set: { container_id: req.query.containerId}});
-        res.send('Task container changed');
+        const updatedTask = await schema.Task.findOneAndUpdate(
+            { _id: taskId }, // Find the task by taskId
+            { container_id: containerId }, // Update the container_id with the new value
+            { new: true } // Return the updated document
+        );
+
+        if (updatedTask) {
+            console.log("Updated task:", updatedTask);
+            res.send('Task containerId updated');
+        } else {
+            console.log("Task not found with taskId:", taskId);
+            res.status(404).send('Task not found');
+        }
     } catch (error) {
-        console.error('Error changing task container:', error);
-        res.status(500).send('Internal Server Error');
+        console.error("Error updating task:", error);
+        res.status(500).json("Internal Server Error");
     }
 });
 
 // route to update whole task (getting task_id in request body)
-app.post('/update-task', async (req, res) => {
-    const task = await schema.Task.findOne
-    ({ task_id: req.body.task_id});
-    task.title = req.body.title;
-    task.description = req.body.description;
-    task.phase = req.body.phase;
-    task.assigned_to = req.body.assigned_to;
-    task.deadline = req.body.deadline;
-    task.progress = req.body.progress;
-    await task.save();
-    res.send('Task updated');
-});
+app.put('/update-task', async (req, res) => {
+    const { task_id, title, description, phase, assigned_to, deadline, progress } = req.body;
 
+    try {
+        const updatedTask = await schema.Task.findOneAndUpdate(
+            { _id: task_id },
+            { 
+                title: title,
+                description: description,
+                phase: phase,
+                assigned_to: assigned_to,
+                deadline: deadline,
+                progress: progress
+            },
+            { new: true } // to return the updated document
+        );
+
+        console.log("Updated task:", updatedTask);
+        res.json('Task updated');
+    } catch (error) {
+        console.error("Error updating task:", error);
+        res.status(500).json("Internal Server Error");
+    }
+});
 
 
 // implement in end
