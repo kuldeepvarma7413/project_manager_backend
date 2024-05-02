@@ -45,7 +45,7 @@ const upload = multer({ storage: storage });
 // Connect to MongoDB
 async function connectDB(){
     try {
-        await mongoose.connect('mongodb+srv://kuldeepvarma7413:ProjectManager7413@projectmanagerproject.yyc9pke.mongodb.net/', {})
+        await mongoose.connect('string', {})
         console.log('Connected to the database.');
     }catch (e) {
         console.log('Error connecting to the database.');
@@ -55,10 +55,7 @@ async function connectDB(){
 
 // connect to cloudinary
 cloudinary.config({
-    cloud_name: 'dylmvpvn7',
-    api_key: '913441945363269',
-    api_secret: '-bhQOD7EDDRaxLR3Kxq_xnN5LM4',
-    secure: true
+    'configure'
 });
 
 
