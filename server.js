@@ -73,33 +73,39 @@ app.get('/', (req, res) => {
 // route to add employee in database (getting name, email, designation, department, phone, address, organisation_id, photo in request body)
 app.post('/add-employee', upload.single('photo'), async (req, res) => {
     try{
-
-        // Upload photo to Cloudinary
-        const base64Image = req.body.photo;
-        // Remove the header from the base64 string
-        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-        // Create a buffer from the base64 data
-    
-        if(!base64Data){
-            console.log("file not found")
-            return res.status(400).send('No file uploaded.');
+        console.log(req.body)
+        if(req.body.photo){
+            
+            // Upload photo to Cloudinary
+            const base64Image = req.body.photo;
+            // Remove the header from the base64 string
+            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+            // Create a buffer from the base64 data
+            
+            if(!base64Data){
+                console.log("file not found")
+                return res.status(400).send('No file uploaded.');
+            }
+            // upload on cloudinary
+            
+            const uploadResult = await cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Data}`, { folder: 'project_manager/profile_photos' });            
+            // Save the image URL in the photo tag of schema
+            const employee = new schema.Employee({
+                name: req.body.name,
+                email: req.body.email,
+                designation: req.body.designation,
+                department: req.body.department,
+                phone: req.body.phone,
+                address: req.body.address,
+                organisation_id: req.body.organisation_id,
+                photo: uploadResult.secure_url
+            });    
+        
+            await employee.save();
+            res.send('Employee added to the database');
+        }else{
+            res.status(402).send('Photo not found');
         }
-        // upload on cloudinary
-        const uploadResult = await cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Data}`, { folder: 'project_manager/profile_photos' });
-        // Save the image URL in the photo tag of schema
-        const employee = new schema.Employee({
-            name: req.body.name,
-            email: req.body.email,
-            designation: req.body.designation,
-            department: req.body.department,
-            phone: req.body.phone,
-            address: req.body.address,
-            organisation_id: req.body.organisation_id,
-            photo: uploadResult.secure_url
-        });    
-    
-        await employee.save();
-        res.send('Employee added to the database');
     }catch(error){
         console.error('Error adding employee:', error);
         res.status(500).send('Internal Server Error');
@@ -135,24 +141,12 @@ app.put('/update-employee', async (req, res) => {
     try{
         // if photo is in request
         const employee = await schema.Employee.findById(req.query.id);
-        if(!req.body.photo){
-            // delete previous image from cloudinary
-            const imagePublicId = employee.photo.split('/').pop().split('.')[0];
-            await cloudinary.uploader.destroy(imagePublicId);
-            
+        if(req.body.photo){
             // Upload photo to Cloudinary
             const base64Image = req.body.photo;
-            // Remove the header from the base64 string
-            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-            // Create a buffer from the base64 data
             
-            if(!base64Data){
-                console.log("file not found")
-                return res.status(400).send('No file uploaded.');
-            }
-            // upload on cloudinary
-            const uploadResult = await cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Data}`, { folder: 'project_manager/profile_photos' });
-            
+            // Upload image directly from base64 data
+            const uploadResult = await cloudinary.uploader.upload(base64Image, { folder: 'project_manager/profile_photos' });
             employee.photo = uploadResult.secure_url;
         }
         employee.name = req.body.name;
@@ -249,7 +243,6 @@ app.get('/get-tasks', async (req, res) => {
 // route to change container id of a task (getting task_id, container_id, organisation_id in request body)
 app.put('/change-container', async (req, res) => {
     const { taskId, containerId } = req.query;
-    console.log("taskId:", taskId, "containerId:", containerId)
     try {
         const updatedTask = await schema.Task.findOneAndUpdate(
             { _id: taskId }, // Find the task by taskId
@@ -272,11 +265,13 @@ app.put('/change-container', async (req, res) => {
 
 // route to update whole task (getting task_id in request body)
 app.put('/update-task', async (req, res) => {
-    const { task_id, title, description, phase, assigned_to, deadline, progress } = req.body;
+    const { _id, title, description, phase, assigned_to, deadline, progress } = req.body;
+
+    console.log(req.body)
 
     try {
         const updatedTask = await schema.Task.findOneAndUpdate(
-            { _id: task_id },
+            { _id: _id },
             { 
                 title: title,
                 description: description,
